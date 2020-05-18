@@ -1,8 +1,16 @@
-FROM centos:7
+FROM debian:buster-slim
 
-VOLUME ["/scripts", "/results"]
+MAINTAINER hleroy <hleroy@hleroy.com>
 
-RUN yum install nmap mailx postfix -y; yum clean all
+# Install nmap ndiff msmtp and mailutils
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive \
+     apt-get install -q -y --no-install-recommends \
+     nmap ndiff msmtp msmtp-mta bsd-mailx ca-certificates && \
+     apt-get clean && \
+     rm -rf /var/lib/apt/lists/*
 
-# Postfix is used to send email
-CMD /usr/sbin/postfix start; /scripts/scan.sh
+COPY scan.sh /app/
+
+VOLUME ["/results"]
+
+CMD ["/app/scan.sh"]

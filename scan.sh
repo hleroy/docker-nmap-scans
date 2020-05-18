@@ -4,27 +4,41 @@
 #
 # TARGETS should be set by env variable
 # MAILTO should be set by env variable
-# SLEEP how many to wait between runs
-#
+# INTERVAL how many seconds to wait between runs, default to 86400
 
-if [ "${TARGETS:-}" == "" ]; then
-    echo "TARGETS not set (space separated list of servers to scan)"
-    exit
-fi
+# Check if mandatory environment variables are set
+: ${TARGETS?"You need to set TARGETS environment variable (space separated list of servers to scan)."}
+: ${MAILTO?"You need to set the MAILTO environment variable (email to send diffs to)."}
+: ${SMTP_HOST?"You need to set the SMTP_HOST environment variable."}
+: ${SMTP_PORT?"You need to set the SMTP_PORT environment variable."}
+: ${SMTP_USER?"You need to set the SMTP_USER environment variable."}
+: ${SMTP_PASS?"You need to set the SMTP_PASS environment variable."}
+: ${SMTP_FROM?"You need to set the SMTP_FROM environment variable."}
 
-if [ "${MAILTO:-}" == "" ]; then
-    echo "MAILTO not set (email to send diffs to)"
-    exit
-fi
+# Default sleep interval to 1 day (86400 seconds)
+INTERVAL=${INTERVAL:-86400}
 
-if [ "${INTERVAL:-}" == "" ]; then
-    echo "INTERVAL not set (second to sleep between runs)"
-    exit
-fi
+# Default nmap options to -PN
+OPTIONS=${OPTIONS:--PN}
 
-if [ "${OPTIONS:-}" == "" ]; then
-    OPTIONS='-Pn'
-fi
+# Configure msmtprc
+cat << EOF > /etc/msmtprc
+defaults
+tls on
+tls_starttls on
+tls_trust_file /etc/ssl/certs/ca-certificates.crt
+syslog on
+account default
+host $SMTP_HOST
+port $SMTP_PORT
+auth on
+user $SMTP_USER
+password $SMTP_PASS
+from $SMTP_FROM
+EOF
+
+# Send an email to inform that the nmap scan has started
+mail -s "Starting nmap scan diff for ${TARGETS}" ${MAILTO} < /dev/null
 
 cd /results
 LAST_RUN_FILE='.lastrun'
